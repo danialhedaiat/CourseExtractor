@@ -10,7 +10,7 @@ from extractor.service import process_tar
 router = APIRouter(prefix="/courses", tags=["courses"])
 
 
-@router.post("/", status_code=201)
+@router.post("/upload", status_code=201)
 async def upload_course(
     file: UploadFile = File(...),
     db: Session = Depends(database.get_db),
@@ -36,10 +36,12 @@ async def upload_course(
     try:
         course = process_tar(tar_path, db)
     except ValueError as exc:
-        tar_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # noqa: BLE001 - surface extraction failures
         raise HTTPException(status_code=500, detail=f"Extraction failed: {exc}")
+    finally:
+        # The uploaded archive isn't needed once extraction is done.
+        tar_path.unlink(missing_ok=True)
 
     return {
         "id": course.id,
