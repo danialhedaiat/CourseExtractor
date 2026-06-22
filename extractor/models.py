@@ -10,3 +10,4 @@ class Course(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     course_name: Mapped[str] = mapped_column(String, nullable=False)
     zip_file_path: Mapped[str] = mapped_column(String, nullable=False)
+    extracted_json_path: Mapped[str] = mapped_column(String, nullable=False)
