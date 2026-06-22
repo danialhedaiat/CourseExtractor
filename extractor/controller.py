@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from celery.result import AsyncResult
@@ -70,7 +71,7 @@ async def download_zip(course_id: int, db: Session = Depends(database.get_db)):
 
 @router.get("/{course_id}/json")
 async def download_json(course_id: int, db: Session = Depends(database.get_db)):
-    """Download the extracted course JSON."""
+    """Download the extracted course JSON as a file."""
     course = db.get(Course, course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -78,3 +79,15 @@ async def download_json(course_id: int, db: Session = Depends(database.get_db)):
     if not path.exists():
         raise HTTPException(status_code=404, detail="JSON file not found")
     return FileResponse(path, filename=path.name, media_type="application/json")
+
+
+@router.get("/{course_id}/show")
+async def show_json(course_id: int, db: Session = Depends(database.get_db)) -> dict:
+    """Return the extracted course JSON inline (viewable in Swagger/browser)."""
+    course = db.get(Course, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    path = Path(course.extracted_json_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="JSON file not found")
+    return json.loads(path.read_text(encoding="utf-8"))
