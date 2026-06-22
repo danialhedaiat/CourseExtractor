@@ -1,21 +1,22 @@
 from pathlib import Path
 
+from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from core.database import database
 from core.settings import settings
-from extractor.service import process_tar
+from extractor.celery_app import celery_app
+from extractor.models import Course
+from extractor.tasks import extract_course_task
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
 
-@router.post("/upload", status_code=201)
-async def upload_course(
-    file: UploadFile = File(...),
-    db: Session = Depends(database.get_db),
-) -> dict:
-    """Receive a course .tar, extract it, and store a Course record."""
+@router.post("/upload", status_code=202)
+async def upload_course(file: UploadFile = File(...)) -> dict:
+    """Receive a course .tar and queue extraction; returns a task id to poll."""
     if not file.filename or not file.filename.endswith(settings.ALLOWED_EXTENSION):
         raise HTTPException(
             status_code=400,
@@ -33,19 +34,47 @@ async def upload_course(
     finally:
         await file.close()
 
-    try:
-        course = process_tar(tar_path, db)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:  # noqa: BLE001 - surface extraction failures
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {exc}")
-    finally:
-        # The uploaded archive isn't needed once extraction is done.
-        tar_path.unlink(missing_ok=True)
-
+    task = extract_course_task.delay(str(tar_path))
     return {
-        "id": course.id,
-        "course_name": course.course_name,
-        "zip_file_path": course.zip_file_path,
-        "extracted_json_path": course.extracted_json_path,
+        "task_id": task.id,
+        "status": "processing",
+        "status_url": f"/courses/jobs/{task.id}",
     }
+
+
+@router.get("/jobs/{task_id}")
+async def job_status(task_id: str) -> dict:
+    """Progress/status of an extraction task (poll this to drive a progress bar)."""
+    res = AsyncResult(task_id, app=celery_app)
+    body: dict = {"task_id": task_id, "state": res.state}
+    if res.state == "PROGRESS":
+        body.update(res.info or {})
+    elif res.state == "SUCCESS":
+        body["result"] = res.result
+    elif res.state == "FAILURE":
+        body["error"] = str(res.info)
+    return body
+
+
+@router.get("/{course_id}/zip")
+async def download_zip(course_id: int, db: Session = Depends(database.get_db)):
+    """Download the extracted course bundle (.zip)."""
+    course = db.get(Course, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    path = Path(course.zip_file_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Zip file not found")
+    return FileResponse(path, filename=path.name, media_type="application/zip")
+
+
+@router.get("/{course_id}/json")
+async def download_json(course_id: int, db: Session = Depends(database.get_db)):
+    """Download the extracted course JSON."""
+    course = db.get(Course, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    path = Path(course.extracted_json_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="JSON file not found")
+    return FileResponse(path, filename=path.name, media_type="application/json")

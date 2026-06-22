@@ -28,8 +28,11 @@ def _course_id_from(tar_path: Path) -> str:
     return f"{stem}-{uuid.uuid4().hex[:8]}"
 
 
-def process_tar(tar_path: Path, db: Session) -> Course:
-    """Unpack the tar, extract the OLX course, save a Course row, return it."""
+def process_tar(tar_path: Path, db: Session, progress=None) -> Course:
+    """Unpack the tar, extract the OLX course, save a Course row, return it.
+
+    `progress` is an optional callback(done, total) reporting video downloads.
+    """
     tar_path = Path(tar_path)
     if not tarfile.is_tarfile(tar_path):
         raise ValueError("Uploaded file is not a valid tar archive")
@@ -43,7 +46,7 @@ def process_tar(tar_path: Path, db: Session) -> Course:
     work.mkdir(parents=True, exist_ok=True)
     try:
         _safe_extract_tar(tar_path, work)
-        result = extract_course(work, course_id)
+        result = extract_course(work, course_id, progress=progress)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

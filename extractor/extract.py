@@ -27,6 +27,35 @@ MEDIA_DIR = Path(settings.UPLOAD_DIR)
 def youtube_quality() -> str:
     return settings.YOUTUBE_VIDEO_QUALITY
 
+
+# Per-extraction progress reporting. Set by extract_course; extract_video bumps it
+# after each video so a Celery task can stream "video i/N" to the result backend.
+_progress: dict = {"cb": None, "total": 0, "done": 0}
+
+
+def _init_progress(callback, total_videos: int) -> None:
+    _progress.update({"cb": callback, "total": total_videos, "done": 0})
+
+
+def _bump_video() -> None:
+    _progress["done"] += 1
+    if _progress["cb"]:
+        _progress["cb"](_progress["done"], _progress["total"])
+
+
+def count_videos(course_dir: Path) -> int:
+    """Count <video> components across the course's verticals (for progress total)."""
+    total = 0
+    vdir = course_dir / "vertical"
+    if vdir.is_dir():
+        for f in vdir.glob("*.xml"):
+            try:
+                root = ET.parse(f).getroot()
+            except ET.ParseError:
+                continue
+            total += sum(1 for c in root if isinstance(c.tag, str) and c.tag == "video")
+    return total
+
 # Invisible characters that are genuinely junk and safe to drop everywhere.
 ZWNJ = "‌"  # U+200C zero-width non-joiner — replaced with a normal space (پیش‌دبستان -> پیش دبستان)
 INVISIBLE_JUNK = "​‍‎‏﻿"  # ZWSP, ZWJ, LRM, RLM, BOM
@@ -881,6 +910,7 @@ def extract_video(el, course_dir: Path) -> dict:
             transcripts[lang] = mp
     if transcripts:
         out["transcripts"] = transcripts
+    _bump_video()
     return out
 
 
@@ -1039,12 +1069,13 @@ def extract_about(course_dir: Path) -> dict:
     return about
 
 
-def extract_course(extracted_root: Path, course_id: str) -> dict:
+def extract_course(extracted_root: Path, course_id: str, progress=None) -> dict:
     """Extract one OLX course and bundle it under MEDIA_DIR/<course_id>/.
 
     `extracted_root` is the unpacked course folder (it must contain `course/` with
     course.xml) and `extracted_root.name` must equal `course_id` so the asset-copy
-    helpers route into MEDIA_DIR/<course_id>/assets.
+    helpers route into MEDIA_DIR/<course_id>/assets. `progress` is an optional
+    callback(done, total) invoked after each video download.
 
     Returns {course_id, course_name, json_path, zip_path}.
     """
@@ -1052,6 +1083,7 @@ def extract_course(extracted_root: Path, course_id: str) -> dict:
     if not course_dir.is_dir():
         raise FileNotFoundError(f"OLX course folder not found: {course_dir}")
 
+    _init_progress(progress, count_videos(course_dir))
     run = get_run(course_dir)
     data = {
         "course_id": course_id,
