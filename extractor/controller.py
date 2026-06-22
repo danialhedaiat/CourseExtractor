@@ -56,3 +56,7 @@ class CourseController:
             "zip_file_path": course.zip_file_path,
             "extracted_json_path": course.extracted_json_path,
         }
+
+
+# Instantiate once and expose its router for main to include.
+router = CourseController().router

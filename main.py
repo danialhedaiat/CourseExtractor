@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 
-from controllers.course_controller import CourseController
+from extractor.controller import router as course_router
 
 app = FastAPI(title="Course Extractor API")
 
-app.include_router(CourseController().router)
+app.include_router(course_router)
 
 
 @app.get("/")
