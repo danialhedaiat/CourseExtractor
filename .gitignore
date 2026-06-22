@@ -219,3 +219,22 @@ __marimo__/
 
 # Uploaded archives (runtime data)
 uploads/
+
+# Local OpenEdX course samples (not tracked)
+samples/
+
+# Local Claude Code project instructions (not tracked)
+CLAUDE.md
+
+# Local scripts (not tracked)
+scripts/
+
+# Graphify knowledge-graph output (not tracked)
+graphify-out/
+
+# Per-course extracted output + copied assets (not tracked)
+media/
+
+# SQLite database file
+*.db
+courses.db
