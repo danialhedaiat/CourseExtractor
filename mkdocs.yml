@@ -15,6 +15,7 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+
       primary: indigo
       toggle:
         icon: material/weather-night
@@ -30,6 +31,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - JSON Output: json-output.md
+  - Policy Schema: policy.md
   - API Reference: api.md
 
 markdown_extensions:

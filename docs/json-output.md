@@ -108,6 +108,11 @@ Two transformations are applied to this object:
   is replaced with a media path (`<course_id>/assets/<file>`) after the file is copied
   into the bundle.
 
+!!! tip "Full breakdown"
+    Policies carry the grading rules, certificates, **prerequisite courses**, tabs, and
+    key dates. See the dedicated **[Policy Schema](policy.md)** page for a complete,
+    field-by-field reference.
+
 ---
 
 ## The content tree (`course`)
