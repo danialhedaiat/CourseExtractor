@@ -177,6 +177,7 @@ role directly into the content entry. Possible keys:
 | `list` | list | Either a list of strings, or `{paragraph, list}` when a paragraph introduces the list. |
 | `table` | list of tables | Each table is `{header?, body}` (see below). |
 | `image` | string or list | Media path(s) for inline `<img>` and CSS `url(...)` images. A single image is a string; multiple become a list. |
+| `audio` | string or list | Media path(s) for audio referenced by `<audio>`/`<source>`/`<a>` (e.g. `.mp3`, `.ogg`, `.wav`). A single clip is a string; multiple become a list. |
 | `question` | list | Free-response items grouped as `{number?, question, answer}`. |
 
 ```json
@@ -369,9 +370,9 @@ Any value that points at a file uses a **relative media path** of the form:
 ```
 
 These are relative to the service's media root (the same files are inside the `.zip` under
-that path). Images, PDFs, downloaded videos, transcripts, and drag-and-drop target images
-all follow this convention. References that couldn't be resolved to a real file are left as
-their original string.
+that path). Images, **audio**, PDFs, downloaded videos, transcripts, and drag-and-drop
+target images all follow this convention. References that couldn't be resolved to a real
+file are left as their original string.
 
 ---
 

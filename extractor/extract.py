@@ -301,6 +301,14 @@ def block_key(cls: str) -> str | None:
 
 _TABLE_TAGS = {"table", "tr", "td", "th"}
 
+# Audio file extensions we copy out of <audio>/<source>/<a> references in HTML.
+AUDIO_EXTS = (".mp3", ".ogg", ".oga", ".wav", ".m4a", ".aac", ".opus", ".flac")
+
+
+def is_audio_ref(ref: str) -> bool:
+    """True if a src/href points at an audio file (query/fragment ignored)."""
+    return ref.split("?")[0].split("#")[0].lower().endswith(AUDIO_EXTS)
+
 
 class _HtmlBlocks(HTMLParser):
     """Extract ordered content blocks: {paragraph|header: text}, {list: [...]},
@@ -315,6 +323,7 @@ class _HtmlBlocks(HTMLParser):
         self.course_dir = course_dir
         self.stack: list[dict] = []
         self.out: list[dict] = []
+        self._seen_audio: set[str] = set()
 
     def _in_cell(self) -> bool:
         return any(fr["tag"] in ("td", "th") for fr in self.stack)
@@ -332,6 +341,21 @@ class _HtmlBlocks(HTMLParser):
             if media_path:
                 self.out.append({"image": media_path})
 
+    def _handle_audio(self, attrs):
+        """Copy a /static/ audio file referenced by <audio>/<source>/<a> to media.
+
+        Looks at either `src` (audio/source) or `href` (a). Emits one {audio: path}
+        block per distinct file, so an <audio> with several <source> fallbacks of the
+        same clip isn't duplicated.
+        """
+        a = dict(attrs)
+        ref = a.get("src") or a.get("href") or ""
+        if "static/" in ref and is_audio_ref(ref):
+            media_path = copy_content_asset(self.course_dir, ref)
+            if media_path and media_path not in self._seen_audio:
+                self._seen_audio.add(media_path)
+                self.out.append({"audio": media_path})
+
     def handle_starttag(self, tag, attrs):
         if tag == "br":
             if self.stack:
@@ -339,6 +363,9 @@ class _HtmlBlocks(HTMLParser):
             return
         if tag == "img":
             self._handle_img(attrs)
+            return
+        if tag in ("audio", "source", "a"):
+            self._handle_audio(attrs)
             return
         if tag in _TABLE_TAGS:
             self.stack.append(self._new_frame(tag, attrs))
@@ -353,6 +380,8 @@ class _HtmlBlocks(HTMLParser):
             self.stack[-1]["parts"].append("\n")
         elif tag == "img":
             self._handle_img(attrs)
+        elif tag in ("audio", "source", "a"):
+            self._handle_audio(attrs)
 
     def handle_data(self, data):
         if self.stack and data.strip():
@@ -643,6 +672,8 @@ def group_html_blocks(blocks: list[dict]) -> dict:
     for b in blocks:
         if set(b) == {"image"}:
             name, val = "image", b["image"]
+        elif set(b) == {"audio"}:
+            name, val = "audio", b["audio"]
         elif "table" in b:
             name, val = "table", b["table"]
         elif "question" in b:        # free-response {number, question, answer}
@@ -657,7 +688,7 @@ def group_html_blocks(blocks: list[dict]) -> dict:
 
     out: dict = {}
     for name, vals in grouped.items():
-        out[name] = vals[0] if name == "image" and len(vals) == 1 else vals
+        out[name] = vals[0] if name in ("image", "audio") and len(vals) == 1 else vals
     return out
 
 
