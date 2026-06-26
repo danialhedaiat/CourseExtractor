@@ -29,6 +29,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - JSON Output: json-output.md
   - API Reference: api.md
 
 markdown_extensions:
