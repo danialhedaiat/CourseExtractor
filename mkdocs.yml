@@ -1,0 +1,41 @@
+site_name: Course Extractor
+site_description: FastAPI service that turns OpenEdX (OLX) course archives into structured data and a knowledge graph.
+site_url: https://danialhedaiat.github.io/CourseExtractor/
+repo_url: https://github.com/danialhedaiat/CourseExtractor
+repo_name: danialhedaiat/CourseExtractor
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.integrate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - API Reference: api.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - tables
+  - toc:
+      permalink: true

@@ -238,3 +238,7 @@ media/
 # SQLite database file
 *.db
 courses.db
+
+# MkDocs build output
+_site/
+site/
